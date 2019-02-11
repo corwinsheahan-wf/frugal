@@ -286,14 +286,15 @@ public class FNatsServer implements FServer {
 
             executorService.execute(
                     new Request(message.getData(), System.currentTimeMillis(), message.getReplyTo(),
-                            highWatermark, inputProtoFactory, outputProtoFactory, processor, conn));
+                            highWatermark, inputProtoFactory, outputProtoFactory, processor, conn,
+                            eventHandler));
         };
     }
 
     /**
      * Runnable which encapsulates a request received by the server.
      */
-    class Request implements Runnable {
+    static class Request implements Runnable {
 
         final byte[] frameBytes;
         final long timestamp;
@@ -303,10 +304,11 @@ public class FNatsServer implements FServer {
         final FProtocolFactory outputProtoFactory;
         final FProcessor processor;
         final Connection conn;
+        final FServerEventHandler eventHandler;
 
         Request(byte[] frameBytes, long timestamp, String reply, long highWatermark,
                 FProtocolFactory inputProtoFactory, FProtocolFactory outputProtoFactory,
-                FProcessor processor, Connection conn) {
+                FProcessor processor, Connection conn, FServerEventHandler eventHandler) {
             this.frameBytes = frameBytes;
             this.timestamp = timestamp;
             this.reply = reply;
@@ -315,6 +317,7 @@ public class FNatsServer implements FServer {
             this.outputProtoFactory = outputProtoFactory;
             this.processor = processor;
             this.conn = conn;
+            this.eventHandler = eventHandler;
         }
 
         @Override
