@@ -13,8 +13,10 @@
 
 package com.workiva.frugal.server;
 
+import com.workiva.frugal.FContext;
 import com.workiva.frugal.processor.FProcessor;
 import com.workiva.frugal.protocol.FProtocolFactory;
+import com.workiva.frugal.protocol.HeaderUtils;
 import com.workiva.frugal.transport.TMemoryOutputBuffer;
 import com.workiva.frugal.util.BlockingRejectedExecutionHandler;
 import io.nats.client.Connection;
@@ -25,6 +27,7 @@ import org.apache.thrift.transport.TMemoryInputTransport;
 import org.apache.thrift.transport.TTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.jvm.hotspot.memory.HeapBlock;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,6 +57,7 @@ public class FNatsServer implements FServer {
     private final String[] subjects;
     private final String queue;
     private final long highWatermark;
+    private final FServerEventHandler eventHandler;
 
     private final CountDownLatch shutdownSignal = new CountDownLatch(1);
     private final ExecutorService executorService;
@@ -75,7 +79,7 @@ public class FNatsServer implements FServer {
      * @param executorService Custom executor service for processing messages
      */
     private FNatsServer(Connection conn, FProcessor processor, FProtocolFactory protoFactory,
-                        String[] subjects, String queue, long highWatermark, ExecutorService executorService) {
+                        String[] subjects, String queue, long highWatermark, ExecutorService executorService, FServerEventHandler eventHandler) {
         this.conn = conn;
         this.processor = processor;
         this.inputProtoFactory = protoFactory;
@@ -84,6 +88,7 @@ public class FNatsServer implements FServer {
         this.queue = queue;
         this.highWatermark = highWatermark;
         this.executorService = executorService;
+        this.eventHandler = eventHandler;
     }
 
     /**
@@ -101,6 +106,7 @@ public class FNatsServer implements FServer {
         private int queueLength = DEFAULT_WORK_QUEUE_LEN;
         private long highWatermark = DEFAULT_WATERMARK;
         private ExecutorService executorService;
+        private FServerEventHandler eventHandler;
 
         /**
          * Creates a new Builder which creates FStatelessNatsServers that subscribe to the given NATS subjects.
@@ -186,6 +192,11 @@ public class FNatsServer implements FServer {
             return this;
         }
 
+        public Builder withServerEventHandler(FServerEventHandler eventHandler) {
+            this.eventHandler = eventHandler;
+            return this;
+        }
+
         /**
          * Creates a new configured FNatsServer.
          *
@@ -198,7 +209,11 @@ public class FNatsServer implements FServer {
                         new ArrayBlockingQueue<>(queueLength),
                         new BlockingRejectedExecutionHandler());
             }
-            return new FNatsServer(conn, processor, protoFactory, subjects, queue, highWatermark, executorService);
+            if (eventHandler == null) {
+                eventHandler = new FDefaultNatsServerHandler();
+            }
+
+            return new FNatsServer(conn, processor, protoFactory, subjects, queue, highWatermark, executorService, eventHandler);
         }
 
     }
@@ -267,16 +282,26 @@ public class FNatsServer implements FServer {
                 return;
             }
 
+            // Get the requests correlation id for more information for each request
+            String correlationId;
+            try {
+                correlationId = HeaderUtils.decodeFromFrame(message.getData()).get(FContext.CID_HEADER);
+            } catch (TException e) {
+                LOGGER.warn("Discarding invalid NATS request, could not get FContext headers", e);
+                return;
+            }
+            eventHandler.onNewRequest(correlationId);
+
             executorService.execute(
                     new Request(message.getData(), System.currentTimeMillis(), message.getReplyTo(),
-                            highWatermark, inputProtoFactory, outputProtoFactory, processor, conn));
+                            highWatermark, inputProtoFactory, outputProtoFactory, processor, conn, correlationId));
         };
     }
 
     /**
      * Runnable which encapsulates a request received by the server.
      */
-    static class Request implements Runnable {
+    class Request implements Runnable {
 
         final byte[] frameBytes;
         final long timestamp;
@@ -286,10 +311,11 @@ public class FNatsServer implements FServer {
         final FProtocolFactory outputProtoFactory;
         final FProcessor processor;
         final Connection conn;
+        final String correlationId;
 
         Request(byte[] frameBytes, long timestamp, String reply, long highWatermark,
                 FProtocolFactory inputProtoFactory, FProtocolFactory outputProtoFactory,
-                FProcessor processor, Connection conn) {
+                FProcessor processor, Connection conn, String correlationId) {
             this.frameBytes = frameBytes;
             this.timestamp = timestamp;
             this.reply = reply;
@@ -298,16 +324,17 @@ public class FNatsServer implements FServer {
             this.outputProtoFactory = outputProtoFactory;
             this.processor = processor;
             this.conn = conn;
+            this.correlationId = correlationId;
         }
 
         @Override
         public void run() {
             long duration = System.currentTimeMillis() - timestamp;
             if (duration > highWatermark) {
-                LOGGER.warn(String.format(
-                        "request spent %d ms in the transport buffer, your consumer might be backed up", duration));
+                eventHandler.onHighWatermark(correlationId, duration);
             }
             process();
+            eventHandler.onFinishedRequest(correlationId);
         }
 
         private void process() {
@@ -338,7 +365,7 @@ public class FNatsServer implements FServer {
             try {
                 conn.publish(reply, output.getWriteBytes());
             } catch (IOException e) {
-                LOGGER.warn("failed to request response: " + e.getMessage());
+                LOGGER.error("failed to send response: " + e.getMessage());
             }
         }
 

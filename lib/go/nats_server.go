@@ -30,6 +30,7 @@ type frameWrapper struct {
 	frameBytes []byte
 	timestamp  time.Time
 	reply      string
+	correlationID string
 }
 
 // FNatsServerBuilder configures and builds NATS server instances.
@@ -42,6 +43,11 @@ type FNatsServerBuilder struct {
 	workerCount   uint
 	queueLen      uint
 	highWatermark time.Duration
+
+	// event handlers
+	onHighWatermark func(string, time.Duration)
+	onNewRequest func(string)
+	onFinishedRequest func(string)
 }
 
 // NewFNatsServerBuilder creates a builder which configures and builds NATS
@@ -85,8 +91,63 @@ func (f *FNatsServerBuilder) WithHighWatermark(highWatermark time.Duration) *FNa
 	return f
 }
 
+// WithHighWatermarkHandler sets a function to be called when the FNatsServer
+// encounters a request that took an excess amount of time to begin processing.
+// Takes a correlation id and the duration the message was waiting to be processed.
+func (f *FNatsServerBuilder) WithHighWatermakeHandler(handler func(string, time.Duration)) *FNatsServerBuilder {
+	f.onHighWatermark = handler
+	return f
+}
+
+// WithNewRequestHandler sets a function to be called when a new request is received,
+// before being put into any work queue.
+func (f *FNatsServerBuilder) WithNewRequestHandler(handler func(string)) *FNatsServerBuilder {
+	f.onNewRequest = handler
+	return f
+}
+
+// WithFinishedRequestHandler sets a function to be called when a request has
+// been successfully processed.
+func (f *FNatsServerBuilder) WithFinishedRequestHandler(handler func(string)) *FNatsServerBuilder {
+	f.onFinishedRequest = handler
+	return f
+}
+
+func defaultNatsHighWatermarkHandler(correlationID string, dur time.Duration) {
+	logger().
+		WithField("correlation_id", correlationID).
+		Warnf("frugal: request spent %+v in the transport buffer, your consumer might be backed up", dur)
+}
+
+func defaultNatsNewRequestHandler(correlationID string) {}
+
+func defaultNatsFinishedRequestHandler(correlationID string) {}
+
+func defaultNatsInvalidRequestHandler(err error) {
+	logger().
+		WithError(err).
+		Error("frugal: received invalid request")
+}
+
+func defaultNatsRespondErrorHandler(correlationID string, err error) {
+	logger().
+		WithField("correlation_id", correlationID).
+		WithError(err).
+		Error("frugal: failed to send response")
+}
+
 // Build a new configured NATS FServer.
 func (f *FNatsServerBuilder) Build() FServer {
+	if f.onHighWatermark == nil {
+		f.onHighWatermark = defaultNatsHighWatermarkHandler
+	}
+	if f.onNewRequest == nil {
+		f.onNewRequest = defaultNatsNewRequestHandler
+	}
+	if f.onFinishedRequest == nil {
+		f.onFinishedRequest = defaultNatsFinishedRequestHandler
+	}
+
 	return &fNatsServer{
 		conn:          f.conn,
 		processor:     f.processor,
@@ -97,6 +158,10 @@ func (f *FNatsServerBuilder) Build() FServer {
 		workC:         make(chan *frameWrapper, f.queueLen),
 		quit:          make(chan struct{}),
 		highWatermark: f.highWatermark,
+
+		onHighWatermark: f.onHighWatermark,
+		onNewRequest: f.onNewRequest,
+		onFinishedRequest: f.onFinishedRequest,
 	}
 }
 
@@ -112,6 +177,10 @@ type fNatsServer struct {
 	workC         chan *frameWrapper
 	quit          chan struct{}
 	highWatermark time.Duration
+
+	onHighWatermark func(string, time.Duration)
+	onNewRequest func(string)
+	onFinishedRequest func(string)
 }
 
 // Serve starts the server.
@@ -151,10 +220,19 @@ func (f *fNatsServer) Stop() error {
 func (f *fNatsServer) handler(msg *nats.Msg) {
 	if msg.Reply == "" {
 		logger().Warn("frugal: discarding invalid NATS request (no reply)")
+		//logger().Warn("frugal: discarding invalid NATS request (no reply)")
 		return
 	}
+	headers, err := getHeadersFromFrame(msg.Data)
+	if err != nil {
+		logger().WithError(err).Warn("frugal: discarding invalid NATS request, could not get FContext headers")
+		return
+	}
+	cid := headers[cidHeader]
+	f.onNewRequest(cid)
+
 	select {
-	case f.workC <- &frameWrapper{frameBytes: msg.Data, timestamp: time.Now(), reply: msg.Reply}:
+	case f.workC <- &frameWrapper{frameBytes: msg.Data, timestamp: time.Now(), reply: msg.Reply, correlationID: cid}:
 	case <-f.quit:
 		return
 	}
@@ -170,20 +248,23 @@ func (f *fNatsServer) worker() {
 		case frame := <-f.workC:
 			dur := time.Since(frame.timestamp)
 			if dur > f.highWatermark {
-				logger().Warnf("frugal: request spent %+v in the transport buffer, your consumer might be backed up", dur)
+				f.onHighWatermark(frame.correlationID, dur)
+				//logger().Warnf("frugal: request spent %+v in the transport buffer, your consumer might be backed up", dur)
 			}
-			if err := f.processFrame(frame.frameBytes, frame.reply); err != nil {
+			if err := f.processFrame(frame); err != nil {
 				logger().Errorf("frugal: error processing request: %s", err.Error())
+				continue
 			}
+			f.onFinishedRequest(frame.correlationID)
 		}
 	}
 }
 
 // processFrame invokes the FProcessor and sends the response on the given
 // subject.
-func (f *fNatsServer) processFrame(frame []byte, reply string) error {
+func (f *fNatsServer) processFrame(frame *frameWrapper) error {
 	// Read and process frame.
-	input := &thrift.TMemoryBuffer{Buffer: bytes.NewBuffer(frame[4:])} // Discard frame size
+	input := &thrift.TMemoryBuffer{Buffer: bytes.NewBuffer(frame.frameBytes[4:])} // Discard frame size
 	// Only allow 1MB to be buffered.
 	output := NewTMemoryOutputBuffer(natsMaxMessageSize)
 	iprot := f.protoFactory.GetProtocol(input)
@@ -197,5 +278,5 @@ func (f *fNatsServer) processFrame(frame []byte, reply string) error {
 	}
 
 	// Send response.
-	return f.conn.Publish(reply, output.Bytes())
+	return f.conn.Publish(frame.reply, output.Bytes())
 }
