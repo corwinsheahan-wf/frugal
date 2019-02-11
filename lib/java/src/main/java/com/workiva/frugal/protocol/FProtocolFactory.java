@@ -36,8 +36,4 @@ public class FProtocolFactory {
     public FProtocol getProtocol(TTransport transport) {
         return new FProtocol(tProtocolFactory.getProtocol(transport));
     }
-
-    public FProtocol getProtocol(TTransport transport, Map<String, Object> ephemeralHeaders) {
-        return new FProtocol(tProtocolFactory.getProtocol(transport), ephemeralHeaders);
-    }
 }

@@ -42,21 +42,16 @@ import static com.workiva.frugal.FContext.OPID_HEADER;
 public class FProtocol extends TProtocol {
 
     private TProtocol wrapped;
-    private Map<String, Object> ephemeralHeaders;
+    private Map<String, Object> ephemeralProperties;
 
     protected FProtocol(TProtocol proto) {
         super(proto.getTransport());
         wrapped = proto;
-        ephemeralHeaders = new HashMap<>();
+        ephemeralProperties = new HashMap<>();
     }
 
-    protected FProtocol(TProtocol proto, Map<String, Object> ephemeralHeaders) {
-        super(proto.getTransport());
-        wrapped = proto;
-        if (ephemeralHeaders == null) {
-            ephemeralHeaders = new HashMap<>();
-        }
-        this.ephemeralHeaders = ephemeralHeaders;
+    public void setEphemeralProperties(Map<String, Object> ephemeralProperties) {
+        this.ephemeralProperties = ephemeralProperties;
     }
 
     /**
@@ -90,7 +85,7 @@ public class FProtocol extends TProtocol {
             ctx.addResponseHeader(CID_HEADER, cid);
         }
 
-        ctx.addEphemeralHeaders(ephemeralHeaders);
+        ctx.addEphemeralProperties(ephemeralProperties);
 
         return ctx;
     }
