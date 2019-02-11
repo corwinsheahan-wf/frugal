@@ -27,7 +27,6 @@ import org.apache.thrift.transport.TMemoryInputTransport;
 import org.apache.thrift.transport.TTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.jvm.hotspot.memory.HeapBlock;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -79,7 +78,8 @@ public class FNatsServer implements FServer {
      * @param executorService Custom executor service for processing messages
      */
     private FNatsServer(Connection conn, FProcessor processor, FProtocolFactory protoFactory,
-                        String[] subjects, String queue, long highWatermark, ExecutorService executorService, FServerEventHandler eventHandler) {
+                        String[] subjects, String queue, long highWatermark, ExecutorService executorService,
+                        FServerEventHandler eventHandler) {
         this.conn = conn;
         this.processor = processor;
         this.inputProtoFactory = protoFactory;
@@ -213,7 +213,8 @@ public class FNatsServer implements FServer {
                 eventHandler = new FDefaultNatsServerHandler();
             }
 
-            return new FNatsServer(conn, processor, protoFactory, subjects, queue, highWatermark, executorService, eventHandler);
+            return new FNatsServer(conn, processor, protoFactory, subjects, queue, highWatermark, executorService,
+                    eventHandler);
         }
 
     }

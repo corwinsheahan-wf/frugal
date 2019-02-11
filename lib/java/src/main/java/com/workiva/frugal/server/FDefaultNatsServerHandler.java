@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A default event handler for an FNatsServer
+ * A default event handler for an FNatsServer.
  */
 public class FDefaultNatsServerHandler implements FServerEventHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(FDefaultNatsServerHandler.class);
