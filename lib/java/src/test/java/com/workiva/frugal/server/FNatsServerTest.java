@@ -155,7 +155,8 @@ public class FNatsServerTest {
         MockFProcessor processor = new MockFProcessor(data, "blah".getBytes());
         mockProtocolFactory = new FProtocolFactory(new TJSONProtocol.Factory());
         FNatsServer.Request request = new FNatsServer.Request(data, timestamp, reply, highWatermark,
-                mockProtocolFactory, mockProtocolFactory, processor, mockConn);
+                mockProtocolFactory, mockProtocolFactory, processor, mockConn,
+                new FDefaultNatsServerHandler());
 
         request.run();
 
@@ -172,7 +173,8 @@ public class FNatsServerTest {
         MockFProcessor processor = new MockFProcessor(new RuntimeException());
         mockProtocolFactory = new FProtocolFactory(new TJSONProtocol.Factory());
         FNatsServer.Request request = new FNatsServer.Request(data, timestamp, reply, highWatermark,
-                mockProtocolFactory, mockProtocolFactory, processor, mockConn);
+                mockProtocolFactory, mockProtocolFactory, processor, mockConn,
+                new FDefaultNatsServerHandler());
 
         request.run();
 
@@ -189,7 +191,8 @@ public class FNatsServerTest {
         MockFProcessor processor = new MockFProcessor(data, null);
         mockProtocolFactory = new FProtocolFactory(new TJSONProtocol.Factory());
         FNatsServer.Request request = new FNatsServer.Request(data, timestamp, reply, highWatermark,
-                mockProtocolFactory, mockProtocolFactory, processor, mockConn);
+                mockProtocolFactory, mockProtocolFactory, processor, mockConn,
+                new FDefaultNatsServerHandler());
 
         request.run();
 
