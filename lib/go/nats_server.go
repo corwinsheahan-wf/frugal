@@ -212,13 +212,16 @@ func (f *fNatsServer) handler(msg *nats.Msg) {
 		//logger().Warn("frugal: discarding invalid NATS request (no reply)")
 		return
 	}
+	println(msg.Data)
 	headers, err := getHeadersFromFrame(msg.Data)
+	var cid string
 	if err != nil {
-		logger().WithError(err).Warn("frugal: discarding invalid NATS request, could not get FContext headers")
-		return
+		logger().WithError(err).Warn("frugal: received invalid NATS request, could not get FContext headers")
+	} else {
+		cid = headers[cidHeader]
 	}
-	cid := headers[cidHeader]
 	f.onNewRequest(cid)
+	println(msg.Data)
 
 	select {
 	case f.workC <- &frameWrapper{frameBytes: msg.Data, timestamp: time.Now(), reply: msg.Reply, correlationID: cid}:
