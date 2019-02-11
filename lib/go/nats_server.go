@@ -101,6 +101,7 @@ func (f *FNatsServerBuilder) WithHighWatermakeHandler(handler func(string, time.
 
 // WithNewRequestHandler sets a function to be called when a new request is received,
 // before being put into any work queue.
+// Takes the correlation id of the message, if present.
 func (f *FNatsServerBuilder) WithNewRequestHandler(handler func(string)) *FNatsServerBuilder {
 	f.onNewRequest = handler
 	return f
@@ -108,6 +109,7 @@ func (f *FNatsServerBuilder) WithNewRequestHandler(handler func(string)) *FNatsS
 
 // WithFinishedRequestHandler sets a function to be called when a request has
 // been successfully processed.
+// Takes the correlation id of the message, if present.
 func (f *FNatsServerBuilder) WithFinishedRequestHandler(handler func(string)) *FNatsServerBuilder {
 	f.onFinishedRequest = handler
 	return f
@@ -122,19 +124,6 @@ func defaultNatsHighWatermarkHandler(correlationID string, dur time.Duration) {
 func defaultNatsNewRequestHandler(correlationID string) {}
 
 func defaultNatsFinishedRequestHandler(correlationID string) {}
-
-func defaultNatsInvalidRequestHandler(err error) {
-	logger().
-		WithError(err).
-		Error("frugal: received invalid request")
-}
-
-func defaultNatsRespondErrorHandler(correlationID string, err error) {
-	logger().
-		WithField("correlation_id", correlationID).
-		WithError(err).
-		Error("frugal: failed to send response")
-}
 
 // Build a new configured NATS FServer.
 func (f *FNatsServerBuilder) Build() FServer {
