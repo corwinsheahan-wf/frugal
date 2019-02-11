@@ -24,6 +24,7 @@ import org.apache.thrift.protocol.TSet;
 import org.apache.thrift.protocol.TStruct;
 
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 import java.util.Map;
 
 import static com.workiva.frugal.FContext.CID_HEADER;
@@ -41,10 +42,21 @@ import static com.workiva.frugal.FContext.OPID_HEADER;
 public class FProtocol extends TProtocol {
 
     private TProtocol wrapped;
+    private Map<String, Object> ephemeralHeaders;
 
     protected FProtocol(TProtocol proto) {
         super(proto.getTransport());
         wrapped = proto;
+        ephemeralHeaders = new HashMap<>();
+    }
+
+    protected FProtocol(TProtocol proto, Map<String, Object> ephemeralHeaders) {
+        super(proto.getTransport());
+        wrapped = proto;
+        if (ephemeralHeaders == null) {
+            ephemeralHeaders = new HashMap<>();
+        }
+        this.ephemeralHeaders = ephemeralHeaders;
     }
 
     /**
@@ -77,6 +89,9 @@ public class FProtocol extends TProtocol {
         if (cid != null && !cid.isEmpty()) {
             ctx.addResponseHeader(CID_HEADER, cid);
         }
+
+        ctx.addEphemeralHeaders(ephemeralHeaders);
+
         return ctx;
     }
 

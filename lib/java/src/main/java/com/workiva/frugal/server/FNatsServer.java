@@ -31,6 +31,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -283,19 +285,9 @@ public class FNatsServer implements FServer {
                 return;
             }
 
-            // Get the requests correlation id for more information for each request
-            String correlationId;
-            try {
-                correlationId = HeaderUtils.decodeFromFrame(message.getData()).get(FContext.CID_HEADER);
-            } catch (TException e) {
-                LOGGER.warn("Discarding invalid NATS request, could not get FContext headers", e);
-                return;
-            }
-            eventHandler.onNewRequest(correlationId);
-
             executorService.execute(
                     new Request(message.getData(), System.currentTimeMillis(), message.getReplyTo(),
-                            highWatermark, inputProtoFactory, outputProtoFactory, processor, conn, correlationId));
+                            highWatermark, inputProtoFactory, outputProtoFactory, processor, conn));
         };
     }
 
@@ -312,11 +304,10 @@ public class FNatsServer implements FServer {
         final FProtocolFactory outputProtoFactory;
         final FProcessor processor;
         final Connection conn;
-        final String correlationId;
 
         Request(byte[] frameBytes, long timestamp, String reply, long highWatermark,
                 FProtocolFactory inputProtoFactory, FProtocolFactory outputProtoFactory,
-                FProcessor processor, Connection conn, String correlationId) {
+                FProcessor processor, Connection conn) {
             this.frameBytes = frameBytes;
             this.timestamp = timestamp;
             this.reply = reply;
@@ -325,27 +316,26 @@ public class FNatsServer implements FServer {
             this.outputProtoFactory = outputProtoFactory;
             this.processor = processor;
             this.conn = conn;
-            this.correlationId = correlationId;
         }
 
         @Override
         public void run() {
             long duration = System.currentTimeMillis() - timestamp;
             if (duration > highWatermark) {
-                eventHandler.onHighWatermark(correlationId, duration);
+                eventHandler.onHighWatermark(duration);
             }
             process();
-            eventHandler.onFinishedRequest(correlationId);
         }
 
         private void process() {
             // Read and process frame (exclude first 4 bytes which represent frame size).
             byte[] frame = Arrays.copyOfRange(frameBytes, 4, frameBytes.length);
             TTransport input = new TMemoryInputTransport(frame);
-
             TMemoryOutputBuffer output = new TMemoryOutputBuffer(NATS_MAX_MESSAGE_SIZE);
+            Map<String, Object> ephemeralHeaders = new HashMap<>();
+
             try {
-                processor.process(inputProtoFactory.getProtocol(input), outputProtoFactory.getProtocol(output));
+                processor.process(inputProtoFactory.getProtocol(input, ephemeralHeaders), outputProtoFactory.getProtocol(output));
             } catch (TException e) {
                 LOGGER.error("error processing request", e);
                 return;

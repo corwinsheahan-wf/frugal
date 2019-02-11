@@ -16,6 +16,8 @@ package com.workiva.frugal.protocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.apache.thrift.transport.TTransport;
 
+import java.util.Map;
+
 /**
  * FProtocolFactory creates new FProtocol instances. It takes a TProtocolFactory
  * and a TTransport and returns an FProtocol which wraps a TProtocol produced by
@@ -35,4 +37,7 @@ public class FProtocolFactory {
         return new FProtocol(tProtocolFactory.getProtocol(transport));
     }
 
+    public FProtocol getProtocol(TTransport transport, Map<String, Object> ephemeralHeaders) {
+        return new FProtocol(tProtocolFactory.getProtocol(transport), ephemeralHeaders);
+    }
 }

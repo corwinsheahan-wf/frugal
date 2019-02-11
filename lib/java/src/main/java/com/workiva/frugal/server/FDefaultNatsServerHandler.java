@@ -10,18 +10,8 @@ public class FDefaultNatsServerHandler implements FServerEventHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(FDefaultNatsServerHandler.class);
 
     @Override
-    public void onHighWatermark(String correlationId, long duration) {
+    public void onHighWatermark(long duration) {
         LOGGER.warn(String.format(
                 "request spent %d ms in the transport buffer, your consumer might be backed up", duration));
-    }
-
-    @Override
-    public void onNewRequest(String correlationId) {
-        // Do nothing by default
-    }
-
-    @Override
-    public void onFinishedRequest(String correlationId) {
-        // Do nothing by default
     }
 }
