@@ -333,6 +333,8 @@ public class FNatsServer implements FServer {
             TTransport input = new TMemoryInputTransport(frame);
             TMemoryOutputBuffer output = new TMemoryOutputBuffer(NATS_MAX_MESSAGE_SIZE);
             Map<String, Object> ephemeralHeaders = new HashMap<>();
+            // TODO this needs documented
+            ephemeralHeaders.put("_received_timestamp", timestamp);
 
             try {
                 processor.process(inputProtoFactory.getProtocol(input, ephemeralHeaders), outputProtoFactory.getProtocol(output));
