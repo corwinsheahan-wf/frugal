@@ -13,10 +13,9 @@
 
 package com.workiva.frugal.server;
 
-import com.workiva.frugal.FContext;
 import com.workiva.frugal.processor.FProcessor;
+import com.workiva.frugal.protocol.FProtocol;
 import com.workiva.frugal.protocol.FProtocolFactory;
-import com.workiva.frugal.protocol.HeaderUtils;
 import com.workiva.frugal.transport.TMemoryOutputBuffer;
 import com.workiva.frugal.util.BlockingRejectedExecutionHandler;
 import io.nats.client.Connection;
@@ -337,7 +336,9 @@ public class FNatsServer implements FServer {
             ephemeralHeaders.put("_received_timestamp", timestamp);
 
             try {
-                processor.process(inputProtoFactory.getProtocol(input, ephemeralHeaders), outputProtoFactory.getProtocol(output));
+                FProtocol inputProto = inputProtoFactory.getProtocol(input, ephemeralHeaders);
+                FProtocol outputProto = outputProtoFactory.getProtocol(output);
+                processor.process(inputProto, outputProto);
             } catch (TException e) {
                 LOGGER.error("error processing request", e);
                 return;
