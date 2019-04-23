@@ -42,7 +42,7 @@ import static com.workiva.frugal.FContext.OPID_HEADER;
 public class FProtocol extends TProtocol {
 
     private TProtocol wrapped;
-    private Map<String, Object> ephemeralProperties;
+    private Map<Object, Object> ephemeralProperties;
 
     protected FProtocol(TProtocol proto) {
         super(proto.getTransport());
@@ -50,7 +50,7 @@ public class FProtocol extends TProtocol {
         ephemeralProperties = new HashMap<>();
     }
 
-    public void setEphemeralProperties(Map<String, Object> ephemeralProperties) {
+    public void setEphemeralProperties(Map<Object, Object> ephemeralProperties) {
         this.ephemeralProperties = ephemeralProperties;
     }
 

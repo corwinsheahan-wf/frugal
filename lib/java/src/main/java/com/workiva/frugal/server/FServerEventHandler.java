@@ -1,13 +1,13 @@
 package com.workiva.frugal.server;
 
+import java.util.Map;
+
 /**
  * Provides an interface with which to handle events from an FServer.
  */
 public interface FServerEventHandler {
 
-    /**
-     * Called when the FServer encounters a request that took an excess amount
-     * of time to begin processing.
-     */
-    void onHighWatermark(long duration);
+    void onRequestReceived(Map<Object, Object> ephemeralProperties);
+    void onRequestStarted(Map<Object, Object> ephemeralProperties);
+    void onRequestEnded(Map<Object, Object> ephemeralProperties);
 }

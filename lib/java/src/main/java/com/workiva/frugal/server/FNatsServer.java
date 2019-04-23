@@ -249,7 +249,7 @@ public class FNatsServer implements FServer {
                         new BlockingRejectedExecutionHandler());
             }
             if (eventHandler == null) {
-                eventHandler = new FDefaultNatsServerHandler();
+                eventHandler = new FDefaultNatsServerHandler(highWatermark);
             }
 
             return new FNatsServer(conn, processor, protoFactory, subjects, queue, highWatermark,
@@ -364,10 +364,11 @@ public class FNatsServer implements FServer {
                 return;
             }
 
+            Map<Object, Object> ephemeralProperties = new HashMap<>();
+            this.eventHandler.onRequestReceived(ephemeralProperties);
             executorService.execute(
-                    new Request(message.getData(), System.currentTimeMillis(), message.getReplyTo(),
-                            highWatermark, inputProtoFactory, outputProtoFactory, processor, conn,
-                            eventHandler));
+                    new Request(message.getData(), message.getReplyTo(), inputProtoFactory,
+                            outputProtoFactory, processor, conn, eventHandler, ephemeralProperties));
         };
     }
 
@@ -377,70 +378,67 @@ public class FNatsServer implements FServer {
     static class Request implements Runnable {
 
         final byte[] frameBytes;
-        final long timestamp;
         final String reply;
-        final long highWatermark;
         final FProtocolFactory inputProtoFactory;
         final FProtocolFactory outputProtoFactory;
         final FProcessor processor;
         final Connection conn;
         final FServerEventHandler eventHandler;
+        final Map<Object, Object> ephemeralProperties;
 
-        Request(byte[] frameBytes, long timestamp, String reply, long highWatermark,
+        Request(byte[] frameBytes, String reply,
                 FProtocolFactory inputProtoFactory, FProtocolFactory outputProtoFactory,
-                FProcessor processor, Connection conn, FServerEventHandler eventHandler) {
+                FProcessor processor, Connection conn, FServerEventHandler eventHandler,
+                Map<Object, Object> ephemeralProperties) {
             this.frameBytes = frameBytes;
-            this.timestamp = timestamp;
             this.reply = reply;
-            this.highWatermark = highWatermark;
             this.inputProtoFactory = inputProtoFactory;
             this.outputProtoFactory = outputProtoFactory;
             this.processor = processor;
             this.conn = conn;
             this.eventHandler = eventHandler;
+            this.ephemeralProperties = ephemeralProperties;
         }
 
         @Override
         public void run() {
-            long duration = System.currentTimeMillis() - timestamp;
-            if (duration > highWatermark) {
-                eventHandler.onHighWatermark(duration);
-            }
-            process();
-        }
-
-        private void process() {
-            // Read and process frame (exclude first 4 bytes which represent frame size).
-            byte[] frame = Arrays.copyOfRange(frameBytes, 4, frameBytes.length);
-            TTransport input = new TMemoryInputTransport(frame);
-            TMemoryOutputBuffer output = new TMemoryOutputBuffer(NATS_MAX_MESSAGE_SIZE);
-            Map<String, Object> ephemeralProperties = new HashMap<>();
-            // TODO this needs documented
-            ephemeralProperties.put("_received_timestamp", timestamp);
+            eventHandler.onRequestStarted(ephemeralProperties);
 
             try {
-                FProtocol inputProto = inputProtoFactory.getProtocol(input);
-                inputProto.setEphemeralProperties(ephemeralProperties);
-                FProtocol outputProto = outputProtoFactory.getProtocol(output);
-                processor.process(inputProto, outputProto);
-            } catch (TException e) {
-                LOGGER.error("error processing request", e);
-                return;
-            } catch (RuntimeException e) {
+                // Read and process frame (exclude first 4 bytes which represent frame size).
+                byte[] frame = Arrays.copyOfRange(frameBytes, 4, frameBytes.length);
+                TTransport input = new TMemoryInputTransport(frame);
+                TMemoryOutputBuffer output = new TMemoryOutputBuffer(NATS_MAX_MESSAGE_SIZE);
+
                 try {
-                    conn.publish(reply, output.getWriteBytes());
-                    conn.flush(Duration.ofSeconds(60));
-                } catch (Exception ignored) {
+                    FProtocol inputProto = inputProtoFactory.getProtocol(input);
+                    inputProto.setEphemeralProperties(ephemeralProperties);
+                    FProtocol outputProto = outputProtoFactory.getProtocol(output);
+                    processor.process(inputProto, outputProto);
+                } catch (TException e) {
+                    LOGGER.error("error processing request", e);
+                    return;
+                } catch (RuntimeException e) {
+                    try {
+                        conn.publish(reply, output.getWriteBytes());
+                        conn.flush(Duration.ofSeconds(60));
+                    } catch (Exception ignored) {
+                    }
+                    return;
                 }
-                return;
-            }
 
-            if (!output.hasWriteData()) {
-                return;
-            }
+                if (!output.hasWriteData()) {
+                    return;
+                }
 
-            // Send response.
-            conn.publish(reply, output.getWriteBytes());
+                // Send response.
+                conn.publish(reply, output.getWriteBytes());
+            } finally {
+                // TODO these aren't the same properties as the FContext
+                // as the map is copied, does that matter?
+                // Presumably yes
+                eventHandler.onRequestEnded(ephemeralProperties);
+            }
         }
 
     }
