@@ -10,10 +10,10 @@ import (
 	"git.apache.org/thrift.git/lib/go/thrift"
 	"github.com/Sirupsen/logrus"
 	"github.com/Workiva/frugal/lib/go"
-	"github.com/Workiva/frugal/test/out/async/ValidTypes"
-	"github.com/Workiva/frugal/test/out/async/actual_base/golang"
-	"github.com/Workiva/frugal/test/out/async/subdir_include"
-	"github.com/Workiva/frugal/test/out/async/validStructs"
+	"github.com/Workiva/frugal/test/out/ValidTypes"
+	"github.com/Workiva/frugal/test/out/actual_base/golang"
+	"github.com/Workiva/frugal/test/out/subdir_include"
+	"github.com/Workiva/frugal/test/out/validStructs"
 )
 
 // (needed to ensure safety because of naive import list construction.)
@@ -81,7 +81,6 @@ func NewFFooClient(provider *frugal.FServiceProvider, middleware ...frugal.Servi
 // Ping the server.
 // Deprecated: don't use this; use "something else"
 func (f *FFooClient) Ping(ctx frugal.FContext) (err error) {
-	logrus.Warn("Call to deprecated function 'Foo.Ping'")
 	ret := f.methods["ping"].Invoke([]interface{}{ctx})
 	if len(ret) != 1 {
 		panic(fmt.Sprintf("Middleware returned %d arguments, expected 1", len(ret)))
@@ -157,15 +156,6 @@ func (f *FFooClient) ping(ctx frugal.FContext) (err error) {
 		return
 	}
 	return
-}
-
-// Ping the server.
-func (f *FFooClient) PingAsync(ctx frugal.FContext) (err <-chan error) {
-	errC := make(chan error, 1)
-	go func() {
-		errC <- f.Ping(ctx)
-	}()
-	return errC
 }
 
 // Blah the server.
@@ -263,21 +253,6 @@ func (f *FFooClient) blah(ctx frugal.FContext, num int32, str string, event *Eve
 	return
 }
 
-// Blah the server.
-func (f *FFooClient) BlahAsync(ctx frugal.FContext, num int32, str string, event *Event) (r <-chan int64, err <-chan error) {
-	errC := make(chan error, 1)
-	resultC := make(chan int64, 1)
-	go func() {
-		result, err := f.Blah(ctx, num, str, event)
-		if err != nil {
-			errC <- err
-		} else {
-			resultC <- result
-		}
-	}()
-	return resultC, errC
-}
-
 // oneway methods don't receive a response from the server.
 func (f *FFooClient) OneWay(ctx frugal.FContext, id ID, req Request) (err error) {
 	ret := f.methods["oneWay"].Invoke([]interface{}{ctx, id, req})
@@ -314,15 +289,6 @@ func (f *FFooClient) oneWay(ctx frugal.FContext, id ID, req Request) (err error)
 	}
 	err = f.transport.Oneway(ctx, buffer.Bytes())
 	return
-}
-
-// oneway methods don't receive a response from the server.
-func (f *FFooClient) OneWayAsync(ctx frugal.FContext, id ID, req Request) (err <-chan error) {
-	errC := make(chan error, 1)
-	go func() {
-		errC <- f.OneWay(ctx, id, req)
-	}()
-	return errC
 }
 
 func (f *FFooClient) BinMethod(ctx frugal.FContext, bin []byte, str string) (r []byte, err error) {
@@ -414,20 +380,6 @@ func (f *FFooClient) bin_method(ctx frugal.FContext, bin []byte, str string) (r 
 	return
 }
 
-func (f *FFooClient) BinMethodAsync(ctx frugal.FContext, bin []byte, str string) (r <-chan []byte, err <-chan error) {
-	errC := make(chan error, 1)
-	resultC := make(chan []byte, 1)
-	go func() {
-		result, err := f.BinMethod(ctx, bin, str)
-		if err != nil {
-			errC <- err
-		} else {
-			resultC <- result
-		}
-	}()
-	return resultC, errC
-}
-
 func (f *FFooClient) ParamModifiers(ctx frugal.FContext, opt_num int32, default_num int32, req_num int32) (r int64, err error) {
 	ret := f.methods["param_modifiers"].Invoke([]interface{}{ctx, opt_num, default_num, req_num})
 	if len(ret) != 2 {
@@ -512,20 +464,6 @@ func (f *FFooClient) param_modifiers(ctx frugal.FContext, opt_num int32, default
 	}
 	r = result.GetSuccess()
 	return
-}
-
-func (f *FFooClient) ParamModifiersAsync(ctx frugal.FContext, opt_num int32, default_num int32, req_num int32) (r <-chan int64, err <-chan error) {
-	errC := make(chan error, 1)
-	resultC := make(chan int64, 1)
-	go func() {
-		result, err := f.ParamModifiers(ctx, opt_num, default_num, req_num)
-		if err != nil {
-			errC <- err
-		} else {
-			resultC <- result
-		}
-	}()
-	return resultC, errC
 }
 
 func (f *FFooClient) UnderlyingTypesTest(ctx frugal.FContext, list_type []ID, set_type map[ID]bool) (r []ID, err error) {
@@ -613,20 +551,6 @@ func (f *FFooClient) underlying_types_test(ctx frugal.FContext, list_type []ID, 
 	return
 }
 
-func (f *FFooClient) UnderlyingTypesTestAsync(ctx frugal.FContext, list_type []ID, set_type map[ID]bool) (r <-chan []ID, err <-chan error) {
-	errC := make(chan error, 1)
-	resultC := make(chan []ID, 1)
-	go func() {
-		result, err := f.UnderlyingTypesTest(ctx, list_type, set_type)
-		if err != nil {
-			errC <- err
-		} else {
-			resultC <- result
-		}
-	}()
-	return resultC, errC
-}
-
 func (f *FFooClient) GetThing(ctx frugal.FContext) (r *validStructs.Thing, err error) {
 	ret := f.methods["getThing"].Invoke([]interface{}{ctx})
 	if len(ret) != 2 {
@@ -709,20 +633,6 @@ func (f *FFooClient) getThing(ctx frugal.FContext) (r *validStructs.Thing, err e
 	return
 }
 
-func (f *FFooClient) GetThingAsync(ctx frugal.FContext) (r <-chan *validStructs.Thing, err <-chan error) {
-	errC := make(chan error, 1)
-	resultC := make(chan *validStructs.Thing, 1)
-	go func() {
-		result, err := f.GetThing(ctx)
-		if err != nil {
-			errC <- err
-		} else {
-			resultC <- result
-		}
-	}()
-	return resultC, errC
-}
-
 func (f *FFooClient) GetMyInt(ctx frugal.FContext) (r ValidTypes.MyInt, err error) {
 	ret := f.methods["getMyInt"].Invoke([]interface{}{ctx})
 	if len(ret) != 2 {
@@ -803,20 +713,6 @@ func (f *FFooClient) getMyInt(ctx frugal.FContext) (r ValidTypes.MyInt, err erro
 	}
 	r = result.GetSuccess()
 	return
-}
-
-func (f *FFooClient) GetMyIntAsync(ctx frugal.FContext) (r <-chan ValidTypes.MyInt, err <-chan error) {
-	errC := make(chan error, 1)
-	resultC := make(chan ValidTypes.MyInt, 1)
-	go func() {
-		result, err := f.GetMyInt(ctx)
-		if err != nil {
-			errC <- err
-		} else {
-			resultC <- result
-		}
-	}()
-	return resultC, errC
 }
 
 func (f *FFooClient) UseSubdirStruct(ctx frugal.FContext, a *subdir_include.A) (r *subdir_include.A, err error) {
@@ -903,20 +799,6 @@ func (f *FFooClient) use_subdir_struct(ctx frugal.FContext, a *subdir_include.A)
 	return
 }
 
-func (f *FFooClient) UseSubdirStructAsync(ctx frugal.FContext, a *subdir_include.A) (r <-chan *subdir_include.A, err <-chan error) {
-	errC := make(chan error, 1)
-	resultC := make(chan *subdir_include.A, 1)
-	go func() {
-		result, err := f.UseSubdirStruct(ctx, a)
-		if err != nil {
-			errC <- err
-		} else {
-			resultC <- result
-		}
-	}()
-	return resultC, errC
-}
-
 func (f *FFooClient) SayHelloWith(ctx frugal.FContext, newmessage string) (r string, err error) {
 	ret := f.methods["sayHelloWith"].Invoke([]interface{}{ctx, newmessage})
 	if len(ret) != 2 {
@@ -999,20 +881,6 @@ func (f *FFooClient) sayHelloWith(ctx frugal.FContext, newmessage string) (r str
 	}
 	r = result.GetSuccess()
 	return
-}
-
-func (f *FFooClient) SayHelloWithAsync(ctx frugal.FContext, newmessage string) (r <-chan string, err <-chan error) {
-	errC := make(chan error, 1)
-	resultC := make(chan string, 1)
-	go func() {
-		result, err := f.SayHelloWith(ctx, newmessage)
-		if err != nil {
-			errC <- err
-		} else {
-			resultC <- result
-		}
-	}()
-	return resultC, errC
 }
 
 func (f *FFooClient) WhatDoYouSay(ctx frugal.FContext, messageargs string) (r string, err error) {
@@ -1099,20 +967,6 @@ func (f *FFooClient) whatDoYouSay(ctx frugal.FContext, messageargs string) (r st
 	return
 }
 
-func (f *FFooClient) WhatDoYouSayAsync(ctx frugal.FContext, messageargs string) (r <-chan string, err <-chan error) {
-	errC := make(chan error, 1)
-	resultC := make(chan string, 1)
-	go func() {
-		result, err := f.WhatDoYouSay(ctx, messageargs)
-		if err != nil {
-			errC <- err
-		} else {
-			resultC <- result
-		}
-	}()
-	return resultC, errC
-}
-
 func (f *FFooClient) SayAgain(ctx frugal.FContext, messageresult string) (r string, err error) {
 	ret := f.methods["sayAgain"].Invoke([]interface{}{ctx, messageresult})
 	if len(ret) != 2 {
@@ -1197,20 +1051,6 @@ func (f *FFooClient) sayAgain(ctx frugal.FContext, messageresult string) (r stri
 	return
 }
 
-func (f *FFooClient) SayAgainAsync(ctx frugal.FContext, messageresult string) (r <-chan string, err <-chan error) {
-	errC := make(chan error, 1)
-	resultC := make(chan string, 1)
-	go func() {
-		result, err := f.SayAgain(ctx, messageresult)
-		if err != nil {
-			errC <- err
-		} else {
-			resultC <- result
-		}
-	}()
-	return resultC, errC
-}
-
 type FFooProcessor struct {
 	*golang.FBaseFooProcessor
 }
@@ -1240,7 +1080,6 @@ type fooFPing struct {
 }
 
 func (p *fooFPing) Process(ctx frugal.FContext, iprot, oprot *frugal.FProtocol) error {
-	logrus.Warn("Deprecated function 'Foo.Ping' was called by a client")
 	args := FooPingArgs{}
 	var err error
 	if err = args.Read(iprot); err != nil {

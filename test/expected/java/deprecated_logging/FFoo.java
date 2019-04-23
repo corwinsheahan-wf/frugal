@@ -120,20 +120,7 @@ public class FFoo {
 		 */
 		@Deprecated
 		public void Ping(FContext ctx) throws TException {
-			logger.warn("Call to deprecated function 'Foo.Ping'");
 			proxy.Ping(ctx);
-		}
-
-		/**
-		 * Ping the server.
-		 */
-		public Future<Void> PingAsync(final FContext ctx) {
-			return asyncExecutor.submit(new Callable<Void>() {
-				public Void call() throws Exception {
-					Ping(ctx);
-					return null;
-				}
-			});
 		}
 
 		/**
@@ -144,141 +131,46 @@ public class FFoo {
 		}
 
 		/**
-		 * Blah the server.
-		 */
-		public Future<Long> blahAsync(final FContext ctx, final int num, final String Str, final Event event) {
-			return asyncExecutor.submit(new Callable<Long>() {
-				public Long call() throws Exception {
-					return blah(ctx, num, Str, event);
-				}
-			});
-		}
-
-		/**
 		 * oneway methods don't receive a response from the server.
 		 */
 		public void oneWay(FContext ctx, long id, java.util.Map<Integer, String> req) throws TException {
 			proxy.oneWay(ctx, id, req);
 		}
 
-		/**
-		 * oneway methods don't receive a response from the server.
-		 */
-		public Future<Void> oneWayAsync(final FContext ctx, final long id, final java.util.Map<Integer, String> req) {
-			return asyncExecutor.submit(new Callable<Void>() {
-				public Void call() throws Exception {
-					oneWay(ctx, id, req);
-					return null;
-				}
-			});
-		}
-
 		public java.nio.ByteBuffer bin_method(FContext ctx, java.nio.ByteBuffer bin, String Str) throws TException, actual_base.java.api_exception {
 			return proxy.bin_method(ctx, bin, Str);
-		}
-
-		public Future<java.nio.ByteBuffer> bin_methodAsync(final FContext ctx, final java.nio.ByteBuffer bin, final String Str) {
-			return asyncExecutor.submit(new Callable<java.nio.ByteBuffer>() {
-				public java.nio.ByteBuffer call() throws Exception {
-					return bin_method(ctx, bin, Str);
-				}
-			});
 		}
 
 		public long param_modifiers(FContext ctx, int opt_num, int default_num, int req_num) throws TException {
 			return proxy.param_modifiers(ctx, opt_num, default_num, req_num);
 		}
 
-		public Future<Long> param_modifiersAsync(final FContext ctx, final int opt_num, final int default_num, final int req_num) {
-			return asyncExecutor.submit(new Callable<Long>() {
-				public Long call() throws Exception {
-					return param_modifiers(ctx, opt_num, default_num, req_num);
-				}
-			});
-		}
-
 		public java.util.List<Long> underlying_types_test(FContext ctx, java.util.List<Long> list_type, java.util.Set<Long> set_type) throws TException {
 			return proxy.underlying_types_test(ctx, list_type, set_type);
-		}
-
-		public Future<java.util.List<Long>> underlying_types_testAsync(final FContext ctx, final java.util.List<Long> list_type, final java.util.Set<Long> set_type) {
-			return asyncExecutor.submit(new Callable<java.util.List<Long>>() {
-				public java.util.List<Long> call() throws Exception {
-					return underlying_types_test(ctx, list_type, set_type);
-				}
-			});
 		}
 
 		public Thing getThing(FContext ctx) throws TException {
 			return proxy.getThing(ctx);
 		}
 
-		public Future<Thing> getThingAsync(final FContext ctx) {
-			return asyncExecutor.submit(new Callable<Thing>() {
-				public Thing call() throws Exception {
-					return getThing(ctx);
-				}
-			});
-		}
-
 		public int getMyInt(FContext ctx) throws TException {
 			return proxy.getMyInt(ctx);
-		}
-
-		public Future<Integer> getMyIntAsync(final FContext ctx) {
-			return asyncExecutor.submit(new Callable<Integer>() {
-				public Integer call() throws Exception {
-					return getMyInt(ctx);
-				}
-			});
 		}
 
 		public A use_subdir_struct(FContext ctx, A a) throws TException {
 			return proxy.use_subdir_struct(ctx, a);
 		}
 
-		public Future<A> use_subdir_structAsync(final FContext ctx, final A a) {
-			return asyncExecutor.submit(new Callable<A>() {
-				public A call() throws Exception {
-					return use_subdir_struct(ctx, a);
-				}
-			});
-		}
-
 		public String sayHelloWith(FContext ctx, String newMessage) throws TException {
 			return proxy.sayHelloWith(ctx, newMessage);
-		}
-
-		public Future<String> sayHelloWithAsync(final FContext ctx, final String newMessage) {
-			return asyncExecutor.submit(new Callable<String>() {
-				public String call() throws Exception {
-					return sayHelloWith(ctx, newMessage);
-				}
-			});
 		}
 
 		public String whatDoYouSay(FContext ctx, String messageArgs) throws TException {
 			return proxy.whatDoYouSay(ctx, messageArgs);
 		}
 
-		public Future<String> whatDoYouSayAsync(final FContext ctx, final String messageArgs) {
-			return asyncExecutor.submit(new Callable<String>() {
-				public String call() throws Exception {
-					return whatDoYouSay(ctx, messageArgs);
-				}
-			});
-		}
-
 		public String sayAgain(FContext ctx, String messageResult) throws TException {
 			return proxy.sayAgain(ctx, messageResult);
-		}
-
-		public Future<String> sayAgainAsync(final FContext ctx, final String messageResult) {
-			return asyncExecutor.submit(new Callable<String>() {
-				public String call() throws Exception {
-					return sayAgain(ctx, messageResult);
-				}
-			});
 		}
 
 	}
@@ -774,7 +666,6 @@ public class FFoo {
 		private class Ping implements FProcessorFunction {
 
 			public void process(FContext ctx, FProtocol iprot, FProtocol oprot) throws TException {
-				logger.warn("Deprecated function 'Foo.Ping' was called by a client");
 				Ping_args args = new Ping_args();
 				try {
 					args.read(iprot);
