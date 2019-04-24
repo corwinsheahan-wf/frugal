@@ -1,13 +1,13 @@
 package com.workiva.frugal.server;
 
-import java.util.Map;
+import com.workiva.frugal.FContext;
 
 /**
  * Provides an interface with which to handle events from an FServer.
  */
 public interface FServerEventHandler {
 
-    void onRequestReceived(Map<Object, Object> ephemeralProperties);
-    void onRequestStarted(Map<Object, Object> ephemeralProperties);
-    void onRequestEnded(Map<Object, Object> ephemeralProperties);
+    void onRequestReceived(FContext fctx);
+    void onRequestStarted(FContext fctx);
+    void onRequestEnded(FContext fctx);
 }

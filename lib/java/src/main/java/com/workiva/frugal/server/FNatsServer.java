@@ -13,6 +13,7 @@
 
 package com.workiva.frugal.server;
 
+import com.workiva.frugal.FContext;
 import com.workiva.frugal.processor.FProcessor;
 import com.workiva.frugal.protocol.FProtocol;
 import com.workiva.frugal.protocol.FProtocolFactory;
@@ -364,11 +365,23 @@ public class FNatsServer implements FServer {
                 return;
             }
 
-            Map<Object, Object> ephemeralProperties = new HashMap<>();
-            this.eventHandler.onRequestReceived(ephemeralProperties);
+            byte[] frame = message.getData();
+            TTransport inputTransport = new TMemoryInputTransport(frame, 4, frame.length);
+            FProtocol inputProto = inputProtoFactory.getProtocol(inputTransport);
+            TMemoryOutputBuffer outputTransport = new TMemoryOutputBuffer(NATS_MAX_MESSAGE_SIZE);
+            FProtocol outputProto = outputProtoFactory.getProtocol(outputTransport);
+            FContext fctx;
+            try {
+                fctx = inputProto.readRequestHeader();
+            } catch (TException e) {
+                LOGGER.error("failed to read request headers", e);
+                return;
+            }
+            this.eventHandler.onRequestReceived(fctx);
+
             executorService.execute(
-                    new Request(message.getData(), message.getReplyTo(), inputProtoFactory,
-                            outputProtoFactory, processor, conn, eventHandler, ephemeralProperties));
+                    new Request(message.getData(), message.getReplyTo(), inputProto, outputProto,
+                            outputTransport, processor, conn, eventHandler, fctx));
         };
     }
 
@@ -379,65 +392,56 @@ public class FNatsServer implements FServer {
 
         final byte[] frameBytes;
         final String reply;
-        final FProtocolFactory inputProtoFactory;
-        final FProtocolFactory outputProtoFactory;
+        final FProtocol inputProto;
+        final FProtocol outputProto;
+        final TMemoryOutputBuffer outputTransport;
         final FProcessor processor;
         final Connection conn;
         final FServerEventHandler eventHandler;
-        final Map<Object, Object> ephemeralProperties;
+        final FContext fctx;
 
         Request(byte[] frameBytes, String reply,
-                FProtocolFactory inputProtoFactory, FProtocolFactory outputProtoFactory,
+                FProtocol inputProto, FProtocol outputProto, TMemoryOutputBuffer outputTransport,
                 FProcessor processor, Connection conn, FServerEventHandler eventHandler,
-                Map<Object, Object> ephemeralProperties) {
+                FContext fctx) {
             this.frameBytes = frameBytes;
             this.reply = reply;
-            this.inputProtoFactory = inputProtoFactory;
-            this.outputProtoFactory = outputProtoFactory;
+            this.inputProto = inputProto;
+            this.outputProto = outputProto;
+            this.outputTransport = outputTransport;
             this.processor = processor;
             this.conn = conn;
             this.eventHandler = eventHandler;
-            this.ephemeralProperties = ephemeralProperties;
+            this.fctx = fctx;
         }
 
         @Override
         public void run() {
-            eventHandler.onRequestStarted(ephemeralProperties);
+            eventHandler.onRequestStarted(fctx);
 
             try {
-                // Read and process frame (exclude first 4 bytes which represent frame size).
-                byte[] frame = Arrays.copyOfRange(frameBytes, 4, frameBytes.length);
-                TTransport input = new TMemoryInputTransport(frame);
-                TMemoryOutputBuffer output = new TMemoryOutputBuffer(NATS_MAX_MESSAGE_SIZE);
-
                 try {
-                    FProtocol inputProto = inputProtoFactory.getProtocol(input);
-                    inputProto.setEphemeralProperties(ephemeralProperties);
-                    FProtocol outputProto = outputProtoFactory.getProtocol(output);
                     processor.process(inputProto, outputProto);
                 } catch (TException e) {
                     LOGGER.error("error processing request", e);
                     return;
                 } catch (RuntimeException e) {
                     try {
-                        conn.publish(reply, output.getWriteBytes());
+                        conn.publish(reply, outputTransport.getWriteBytes());
                         conn.flush(Duration.ofSeconds(60));
                     } catch (Exception ignored) {
                     }
                     return;
                 }
 
-                if (!output.hasWriteData()) {
+                if (!outputTransport.hasWriteData()) {
                     return;
                 }
 
                 // Send response.
-                conn.publish(reply, output.getWriteBytes());
+                conn.publish(reply, outputTransport.getWriteBytes());
             } finally {
-                // TODO these aren't the same properties as the FContext
-                // as the map is copied, does that matter?
-                // Presumably yes
-                eventHandler.onRequestEnded(ephemeralProperties);
+                eventHandler.onRequestEnded(fctx);
             }
         }
 

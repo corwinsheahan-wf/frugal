@@ -42,16 +42,11 @@ import static com.workiva.frugal.FContext.OPID_HEADER;
 public class FProtocol extends TProtocol {
 
     private TProtocol wrapped;
-    private Map<Object, Object> ephemeralProperties;
+    private FContext readRequestHeaders;
 
     protected FProtocol(TProtocol proto) {
         super(proto.getTransport());
         wrapped = proto;
-        ephemeralProperties = new HashMap<>();
-    }
-
-    public void setEphemeralProperties(Map<Object, Object> ephemeralProperties) {
-        this.ephemeralProperties = ephemeralProperties;
     }
 
     /**
@@ -71,6 +66,10 @@ public class FProtocol extends TProtocol {
      * @throws TException an error occurred while reading the headers
      */
     public FContext readRequestHeader() throws TException {
+        if (readRequestHeaders != null) {
+            return readRequestHeaders;
+        }
+
         Map<String, String> headers = HeaderUtils.read(wrapped.getTransport());
         // Store the opId so it can be added to the response headers
         // as the opId will be overridden when creating the FContext
@@ -85,8 +84,7 @@ public class FProtocol extends TProtocol {
             ctx.addResponseHeader(CID_HEADER, cid);
         }
 
-        ctx.addEphemeralProperties(ephemeralProperties);
-
+        readRequestHeaders = ctx;
         return ctx;
     }
 

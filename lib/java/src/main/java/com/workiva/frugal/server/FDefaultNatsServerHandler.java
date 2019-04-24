@@ -1,9 +1,8 @@
 package com.workiva.frugal.server;
 
+import com.workiva.frugal.FContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
 
 /**
  * A default event handler for an FNatsServer.
@@ -18,15 +17,15 @@ public class FDefaultNatsServerHandler implements FServerEventHandler {
     }
 
     @Override
-    public void onRequestReceived(Map<Object, Object> ephemeralProperties) {
+    public void onRequestReceived(FContext fctx) {
         long now = System.currentTimeMillis();
-        ephemeralProperties.put("_request_received_millis", now);
+        fctx.addEphemeralProperty("_request_received_millis", now);
     }
 
     @Override
-    public void onRequestStarted(Map<Object, Object> ephemeralProperties) {
-        if (ephemeralProperties.get("_request_received_millis") != null) {
-            long started = (long) ephemeralProperties.get("_request_received_millis");
+    public void onRequestStarted(FContext fctx) {
+        if (fctx.getEphemeralProperty("_request_received_millis") != null) {
+            long started = (long) fctx.getEphemeralProperty("_request_received_millis");
             long duration = System.currentTimeMillis() - started;
             if (duration > highWatermark) {
                 LOGGER.warn(String.format(
@@ -36,7 +35,7 @@ public class FDefaultNatsServerHandler implements FServerEventHandler {
     }
 
     @Override
-    public void onRequestEnded(Map<Object, Object> ephemeralProperties) {
+    public void onRequestEnded(FContext fctxs) {
 
     }
 }

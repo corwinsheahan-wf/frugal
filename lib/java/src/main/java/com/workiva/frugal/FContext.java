@@ -269,6 +269,10 @@ public class FContext implements Cloneable {
         return new HashMap<>(ephemeralProperties);
     }
 
+    public Object getEphemeralProperty(Object key) {
+        return ephemeralProperties.get(key);
+    }
+
     /**
      * Get the request timeout.
      *
