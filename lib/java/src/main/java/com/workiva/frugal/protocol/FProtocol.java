@@ -85,8 +85,9 @@ public class FProtocol extends TProtocol {
             ctx.addResponseHeader(CID_HEADER, cid);
         }
 
-        ctx.addEphemeralProperties(ephemeralProperties);
-
+        // setting the ephemeral properties allows this map in FContext and the
+        // map in the server to be the same.
+        ctx.setEphemeralProperties(ephemeralProperties);
         return ctx;
     }
 

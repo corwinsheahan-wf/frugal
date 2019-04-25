@@ -66,7 +66,7 @@ public class FContext implements Cloneable {
 
     private Map<String, String> requestHeaders = new ConcurrentHashMap<>();
     private Map<String, String> responseHeaders = new ConcurrentHashMap<>();
-    private Map<Object, Object> ephemeralProperties = new ConcurrentHashMap<>();
+    private Map<Object, Object> ephemeralProperties = new HashMap<>();
 
     private FContext(Map<String, String> requestHeaders, Map<String, String> responseHeaders) {
         this.requestHeaders = requestHeaders;
@@ -251,6 +251,11 @@ public class FContext implements Cloneable {
      */
     public Map<String, String> getResponseHeaders() {
         return new HashMap<>(responseHeaders);
+    }
+
+    public FContext setEphemeralProperties(Map<Object, Object> ephemeralProperties) {
+        this.ephemeralProperties = ephemeralProperties;
+        return this;
     }
 
     public FContext addEphemeralProperty(Object key, Object value) {

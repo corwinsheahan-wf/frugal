@@ -432,9 +432,6 @@ public class FNatsServer implements FServer {
                 // Send response.
                 conn.publish(reply, output.getWriteBytes());
             } finally {
-                // TODO these aren't the same properties as the FContext
-                // as the map is copied, does that matter?
-                // Presumably yes
                 eventHandler.onRequestEnded(ephemeralProperties);
             }
         }
