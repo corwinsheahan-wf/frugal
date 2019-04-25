@@ -406,8 +406,7 @@ public class FNatsServer implements FServer {
 
             try {
                 // Read and process frame (exclude first 4 bytes which represent frame size).
-                byte[] frame = Arrays.copyOfRange(frameBytes, 4, frameBytes.length);
-                TTransport input = new TMemoryInputTransport(frame);
+                TTransport input = new TMemoryInputTransport(frameBytes, 4, frameBytes.length);
                 TMemoryOutputBuffer output = new TMemoryOutputBuffer(NATS_MAX_MESSAGE_SIZE);
 
                 try {

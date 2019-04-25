@@ -316,7 +316,9 @@ public class FNatsServerTest {
 
             if (expectedIn != null) {
                 TMemoryInputTransport transport = (TMemoryInputTransport) in.getTransport();
-                assertArrayEquals(Arrays.copyOfRange(expectedIn, 4, expectedIn.length), transport.getBuffer());
+                byte[] trimmedBuffer = Arrays.copyOfRange(
+                        transport.getBuffer(), transport.getBufferPosition(), transport.getBuffer().length);
+                assertArrayEquals(Arrays.copyOfRange(expectedIn, 4, expectedIn.length), trimmedBuffer);
             }
 
             if (expectedOut != null) {
