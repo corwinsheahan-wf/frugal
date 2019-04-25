@@ -8,12 +8,12 @@ import java.util.Map;
 /**
  * A default event handler for an FNatsServer.
  */
-public class FDefaultNatsServerHandler implements FServerEventHandler {
-    private static final Logger LOGGER = LoggerFactory.getLogger(FDefaultNatsServerHandler.class);
+public class FDefaultNatsServerEventHandler implements FNatsServerEventHandler {
+    private static final Logger LOGGER = LoggerFactory.getLogger(FDefaultNatsServerEventHandler.class);
 
     private long highWatermark;
 
-    public FDefaultNatsServerHandler(long highWatermark) {
+    public FDefaultNatsServerEventHandler(long highWatermark) {
         this.highWatermark = highWatermark;
     }
 

@@ -58,7 +58,7 @@ public class FNatsServer implements FServer {
     private final String[] subjects;
     private final String queue;
     private final long highWatermark;
-    private final FServerEventHandler eventHandler;
+    private final FNatsServerEventHandler eventHandler;
     private final long stopTimeoutNS;
 
     private final CountDownLatch shutdownSignal = new CountDownLatch(1);
@@ -98,7 +98,7 @@ public class FNatsServer implements FServer {
      */
     private FNatsServer(Connection conn, FProcessor processor, FProtocolFactory protoFactory,
                         String[] subjects, String queue, long highWatermark, ExecutorService executorService,
-                        long stopTimeoutNS, FServerEventHandler eventHandler) {
+                        long stopTimeoutNS, FNatsServerEventHandler eventHandler) {
         this.conn = conn;
         this.processor = processor;
         this.inputProtoFactory = protoFactory;
@@ -126,7 +126,7 @@ public class FNatsServer implements FServer {
         private int queueLength = DEFAULT_WORK_QUEUE_LEN;
         private long highWatermark = DEFAULT_WATERMARK;
         private ExecutorService executorService;
-        private FServerEventHandler eventHandler;
+        private FNatsServerEventHandler eventHandler;
         private long stopTimeoutNS = DEFAULT_STOP_TIMEOUT_NS;
 
         /**
@@ -217,7 +217,7 @@ public class FNatsServer implements FServer {
             return this;
         }
 
-        public Builder withServerEventHandler(FServerEventHandler eventHandler) {
+        public Builder withServerEventHandler(FNatsServerEventHandler eventHandler) {
             this.eventHandler = eventHandler;
             return this;
         }
@@ -249,7 +249,7 @@ public class FNatsServer implements FServer {
                         new BlockingRejectedExecutionHandler());
             }
             if (eventHandler == null) {
-                eventHandler = new FDefaultNatsServerHandler(highWatermark);
+                eventHandler = new FDefaultNatsServerEventHandler(highWatermark);
             }
 
             return new FNatsServer(conn, processor, protoFactory, subjects, queue, highWatermark,
@@ -383,12 +383,12 @@ public class FNatsServer implements FServer {
         final FProtocolFactory outputProtoFactory;
         final FProcessor processor;
         final Connection conn;
-        final FServerEventHandler eventHandler;
+        final FNatsServerEventHandler eventHandler;
         final Map<Object, Object> ephemeralProperties;
 
         Request(byte[] frameBytes, String reply,
                 FProtocolFactory inputProtoFactory, FProtocolFactory outputProtoFactory,
-                FProcessor processor, Connection conn, FServerEventHandler eventHandler,
+                FProcessor processor, Connection conn, FNatsServerEventHandler eventHandler,
                 Map<Object, Object> ephemeralProperties) {
             this.frameBytes = frameBytes;
             this.reply = reply;
