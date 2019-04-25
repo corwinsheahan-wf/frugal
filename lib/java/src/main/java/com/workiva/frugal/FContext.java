@@ -253,17 +253,17 @@ public class FContext implements Cloneable {
         return new HashMap<>(responseHeaders);
     }
 
-    public FContext addEphemeralProperty(Object key, Object value) {
-        ephemeralProperties.put(key, value);
-        return this;
-    }
-
-    public FContext addEphemeralProperties(Map<Object, Object> headers) {
-        for (Map.Entry<Object, Object> pair : headers.entrySet()) {
-            addEphemeralProperty(pair.getKey(), pair.getValue());
-        }
-        return this;
-    }
+//    public FContext addEphemeralProperty(Object key, Object value) {
+//        ephemeralProperties.put(key, value);
+//        return this;
+//    }
+//
+//    public FContext addEphemeralProperties(Map<Object, Object> headers) {
+//        for (Map.Entry<Object, Object> pair : headers.entrySet()) {
+//            addEphemeralProperty(pair.getKey(), pair.getValue());
+//        }
+//        return this;
+//    }
 
     public Map<Object, Object> getEphemeralProperties() {
         return new HashMap<>(ephemeralProperties);
