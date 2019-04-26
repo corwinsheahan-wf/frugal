@@ -342,6 +342,7 @@ public class FContext implements Cloneable {
         FContext cloned = (FContext) super.clone();
         cloned.requestHeaders = this.getRequestHeaders();
         cloned.responseHeaders = this.getResponseHeaders();
+        cloned.ephemeralProperties = this.getEphemeralProperties();
         cloned.addRequestHeader(OPID_HEADER, getNextOpId());
         return cloned;
     }
